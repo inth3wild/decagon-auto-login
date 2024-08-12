@@ -22,8 +22,10 @@ const axiosInstance = axios.create({
 // Get current date
 function getDate(): getDateReturn {
   const date = new Date();
+  const timezoneOffset = date.getTimezoneOffset() * 60000; // convert to milliseconds
+  const nigeriaTime = new Date(date.getTime() + timezoneOffset + 3600000); // add 1 hour for en-NG
 
-  const time = date
+  const time = nigeriaTime
     .toLocaleTimeString("en-NG", {
       hour: "2-digit",
       minute: "2-digit",
