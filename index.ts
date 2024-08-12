@@ -2,12 +2,8 @@ import axios from "axios";
 import "dotenv/config";
 
 type getDateReturn = {
-  hour: number;
-  minutes: number;
-  year: number;
-  month: string;
-  day: number;
-  AM_OR_PM: "AM" | "PM";
+  time: string;
+  dateString: string;
 };
 
 const axiosInstance = axios.create({
@@ -16,18 +12,34 @@ const axiosInstance = axios.create({
     "User-Agent":
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0",
   },
+  //   proxy: {
+  //     protocol: "http",
+  //     host: "127.0.0.1",
+  //     port: 8080,
+  //   },
 });
 
 // Get current date
 function getDate(): getDateReturn {
   const date = new Date();
-  const hour = date.getHours() > 12 ? date.getHours() - 12 : date.getHours();
-  const minutes = date.getMinutes();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = date.getDate();
-  const AM_OR_PM = date.getHours() > 12 ? "PM" : "AM";
-  return { hour, minutes, year, month, day, AM_OR_PM };
+
+  const time = date
+    .toLocaleTimeString("en-NG", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .replace(/am|pm/gi, (match) => match.toUpperCase());
+
+  const dateString = date
+    .toLocaleDateString("en-NG", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+    .replaceAll("/", "-");
+
+  return { time, dateString };
 }
 
 // Sends request to login
@@ -39,7 +51,7 @@ async function login(): Promise<void> {
         grant_type: "password",
         client_id: "TalentPlus",
         client_secret: process.env.CLIENT_SECRET,
-        username: process.env.USERNAME,
+        username: process.env.LOGIN_USERNAME,
         password: process.env.PASSWORD,
       },
       {
@@ -83,13 +95,13 @@ async function sendSlackNotification(
   points: number,
   currentDate: getDateReturn
 ) {
-  const { hour, minutes, AM_OR_PM, year, month, day } = currentDate;
+  const { time, dateString } = currentDate;
   try {
     await axiosInstance.post(
       process.env.SLACK_WEBHOOK_URL!,
       {
         text: `
-        Logged in at ${hour}:${minutes} ${AM_OR_PM} on ${year}-${month}-${day}.\nTotal points: ${points}
+        Logged in at ${time} on ${dateString}\nTotal points: ${points}
         `,
       },
       { headers: { "Content-Type": "application/json" } }
