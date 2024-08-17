@@ -2,8 +2,16 @@ import axios from "axios";
 import "dotenv/config";
 
 type getDateReturn = {
-  time: string;
+  timeString: string;
   dateString: string;
+};
+
+type loginReturn = {
+  accessToken: string;
+  currentDate: {
+    timeString: string;
+    dateString: string;
+  };
 };
 
 const axiosInstance = axios.create({
@@ -21,31 +29,23 @@ const axiosInstance = axios.create({
 
 // Get current date
 function getDate(): getDateReturn {
-  const date = new Date();
-  const timezoneOffset = date.getTimezoneOffset() * 60000; // convert to milliseconds
-  const nigeriaTime = new Date(date.getTime() + timezoneOffset + 3600000); // add 1 hour for en-NG
+  const localeDate = new Date().toLocaleString("en-NG", {
+    timeZone: "Africa/Lagos",
+    timeStyle: "short",
+    hour12: true,
+    dateStyle: "medium",
+  });
 
-  const time = nigeriaTime
-    .toLocaleTimeString("en-NG", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    })
-    .replace(/am|pm/gi, (match) => match.toUpperCase());
+  let [dateString, timeString] = localeDate.split(",");
+  timeString = timeString
+    .replace(/am|pm/gi, (match) => match.toUpperCase())
+    .trim();
 
-  const dateString = date
-    .toLocaleDateString("en-NG", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
-    .replaceAll("/", "-");
-
-  return { time, dateString };
+  return { timeString, dateString };
 }
 
 // Sends request to login
-async function login(): Promise<void> {
+async function login(): Promise<loginReturn> {
   try {
     const response = await axiosInstance.post(
       "/rest-api/oauth/access_token",
@@ -68,18 +68,14 @@ async function login(): Promise<void> {
     // Get current date
     const currentDate = getDate();
 
-    // Call getPoints()
-    const points = await getPoints(accessToken);
-
-    // Send slack notification
-    await sendSlackNotification(points as number, currentDate);
+    return { accessToken, currentDate };
   } catch (error: any) {
-    console.error("Login error: ", error);
+    throw new Error(`Login error: ${error}`);
   }
 }
 
 // Sends request to get my points
-async function getPoints(accessToken: string): Promise<number | void> {
+async function getPoints(accessToken: string): Promise<number> {
   try {
     const response = await axiosInstance.get("/rest-api/v1/users/me", {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -87,8 +83,7 @@ async function getPoints(accessToken: string): Promise<number | void> {
     console.log(response.data["_data"].points);
     return response.data["_data"].points;
   } catch (error: any) {
-    console.error("Get points error: ", error);
-    return;
+    throw new Error(`Get points error: ${error}`);
   }
 }
 
@@ -96,25 +91,35 @@ async function getPoints(accessToken: string): Promise<number | void> {
 async function sendSlackNotification(
   points: number,
   currentDate: getDateReturn
-) {
-  const { time, dateString } = currentDate;
+): Promise<void> {
+  const { timeString, dateString } = currentDate;
   try {
     await axiosInstance.post(
       process.env.SLACK_WEBHOOK_URL!,
       {
         text: `
-        Logged in at ${time} on ${dateString}\nTotal points: ${points}
+        Logged in at ${timeString} on ${dateString}\nTotal points: ${points}
         `,
       },
       { headers: { "Content-Type": "application/json" } }
     );
   } catch (error: any) {
-    console.error("Send notification error: ", error);
+    throw new Error(`Send notification error: ${error}`);
   }
 }
 
 // Start the script
 export default async function main() {
-  await login();
+  try {
+    const { accessToken, currentDate } = await login();
+
+    // Call getPoints()
+    const points = await getPoints(accessToken);
+
+    // Send slack notification
+    await sendSlackNotification(points, currentDate);
+  } catch (error) {
+    console.error(error);
+  }
 }
 main();
