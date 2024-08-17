@@ -1,5 +1,7 @@
 # decagon-auto-login
+
 ### Val[.]town script format
+
 ```
 import axios from "npm:axios";
 import process from "node:process";
@@ -120,5 +122,4 @@ export default async function main() {
     console.error(error);
   }
 }
-main();
 ```
