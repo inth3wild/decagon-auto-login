@@ -1,6 +1,10 @@
 # decagon-auto-login
 
-### Val[.]town script format
+### Docker run command:
+
+`docker run --rm decagon-auto-login`
+
+### [val.town](https://www.val.town) script format:
 
 ```
 import axios from "npm:axios";
