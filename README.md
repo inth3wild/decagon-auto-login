@@ -2,7 +2,7 @@
 
 ### Docker run command:
 
-`docker run --rm decagon-auto-login`
+`docker run --rm --mount type=bind,source="$(pwd)"/.env,target=/app/.env,readonly decagon-auto-login`
 
 ### [val.town](https://www.val.town) script format:
 
